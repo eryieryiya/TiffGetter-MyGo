@@ -1,0 +1,25 @@
+{
+  "name": "tiffgetter-mygo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "mygo dev",
+    "dev:ios": "mygo dev -platform ios",
+    "dev:android": "mygo dev -platform android",
+    "build": "mygo build",
+    "generate": "mygo generate",
+    "dev:web": "vite",
+    "build:web": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4",
+    "mygo-runtime": "^0.10.0"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.22",
+    "mygo-cli": "^0.10.0",
+    "typescript": "^7",
+    "vite": "^8"
+  }
+}

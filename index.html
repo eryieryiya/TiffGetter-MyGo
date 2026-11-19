@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TiffGetter 卫星影像获取</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo">TG</div>
+        <div class="brand-text">
+          <h1>TiffGetter 卫星影像获取</h1>
+          <p>批量 · 坐标解析 · GeoTIFF 导出</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <label class="inline-field">
+          <span>主题</span>
+          <select id="theme-pair" title="主题配色"></select>
+        </label>
+        <button id="mode-toggle" class="button ghost" type="button">☀ 亮色</button>
+      </div>
+    </header>
+
+    <section class="source-bar">
+      <label class="inline-field">
+        <span>数据源</span>
+        <select id="source" title="数据源"></select>
+      </label>
+      <span id="attribution" class="attribution"></span>
+      <span id="experimental" class="tag warn hidden">⚠ 实验性数据源，接口可能失效</span>
+      <span id="source-capacity" class="muted"></span>
+    </section>
+    <div id="source-note" class="source-note hidden"></div>
+    <div id="preflight" class="preflight"></div>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="single" type="button">单点下载</button>
+      <button class="tab" data-tab="batch" type="button">批量下载</button>
+      <button class="tab" data-tab="cleanup" type="button">清理与维护</button>
+    </nav>
+
+    <main class="workspace">
+      <section id="tab-single" class="tab-panel">
+        <div class="panel-grid">
+          <div class="card">
+            <h2>坐标</h2>
+            <div class="field-row">
+              <label class="field">
+                <span>纬度</span>
+                <input id="lat" type="text" inputmode="decimal" autocomplete="off" value="35.6586" />
+              </label>
+              <label class="field">
+                <span>经度</span>
+                <input id="lon" type="text" inputmode="decimal" autocomplete="off" value="139.7454" />
+              </label>
+            </div>
+            <div class="button-row">
+              <button id="open-map" class="button primary" type="button">在地图上选点</button>
+              <button id="paste-coords" class="button ghost" type="button">📋 粘贴坐标</button>
+              <button id="reset-coords" class="button ghost" type="button">复位</button>
+            </div>
+            <p id="coord-hint" class="hint">请填入纬度和经度</p>
+          </div>
+
+          <div class="card">
+            <h2>参数设置</h2>
+            <div class="field-row">
+              <label class="field">
+                <span>缩放级别</span>
+                <input id="zoom" type="number" min="1" max="20" step="1" value="18" />
+              </label>
+              <label class="field">
+                <span>缓冲区（米）</span>
+                <input id="buffer" type="number" min="50" max="5000" step="50" value="500" />
+              </label>
+            </div>
+            <div class="field-row">
+              <label class="field">
+                <span>起始日期</span>
+                <input id="date-start" type="date" />
+              </label>
+              <label class="field">
+                <span>截止日期</span>
+                <input id="date-end" type="date" />
+              </label>
+            </div>
+            <label class="field">
+              <span>输出目录</span>
+              <div class="input-with-button">
+                <input id="single-output" type="text" autocomplete="off" />
+                <button id="single-output-browse" class="button ghost" type="button">浏览</button>
+              </div>
+            </label>
+            <div class="button-row spread">
+              <label class="checkbox">
+                <input id="dedup" type="checkbox" checked />
+                <span>去重（同源影像只保留最早版本）</span>
+              </label>
+              <div class="button-row">
+                <button id="start-single" class="button success" type="button">开始获取</button>
+                <button id="stop-single" class="button danger" type="button" disabled>停止</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-batch" class="tab-panel hidden">
+        <div class="card">
+          <h2>坐标文件</h2>
+          <div class="file-row">
+            <input id="coords-file" type="text" readonly placeholder="选择 CSV 或 SHP 文件" />
+            <button id="choose-coords" class="button primary" type="button">选择文件</button>
+            <button id="preview-coords" class="button ghost" type="button">预览</button>
+            <button id="export-template" class="button ghost" type="button">📄 导出 CSV 模板</button>
+            <span id="batch-badge" class="tag">待加载</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>批量参数</h2>
+          <div class="field-row">
+            <label class="field">
+              <span>缩放级别</span>
+              <input id="batch-zoom" type="number" min="1" max="20" step="1" value="18" />
+            </label>
+            <label class="field">
+              <span>缓冲区（米）</span>
+              <input id="batch-buffer" type="number" min="50" max="5000" step="50" value="500" />
+            </label>
+            <label class="field">
+              <span>并发数（1..16）</span>
+              <input id="batch-concurrency" type="number" min="1" max="16" step="1" value="1" />
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span>起始日期</span>
+              <input id="batch-date-start" type="date" />
+            </label>
+            <label class="field">
+              <span>截止日期</span>
+              <input id="batch-date-end" type="date" />
+            </label>
+          </div>
+          <label class="field">
+            <span>输出根目录</span>
+            <div class="input-with-button">
+              <input id="batch-output" type="text" autocomplete="off" />
+              <button id="batch-output-browse" class="button ghost" type="button">浏览</button>
+            </div>
+          </label>
+          <div class="button-row spread">
+            <label class="checkbox">
+              <input id="batch-dedup" type="checkbox" checked />
+              <span>去重（同源影像只保留最早版本）</span>
+            </label>
+            <div class="button-row">
+              <button id="start-batch" class="button success" type="button">开始批量下载</button>
+              <button id="stop-batch" class="button danger" type="button" disabled>停止</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>坐标点预览</h2>
+            <span id="preview-summary" class="muted">尚未解析坐标文件</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="preview-table">
+              <thead>
+                <tr><th>名称 / ID</th><th>纬度</th><th>经度</th><th>来源</th></tr>
+              </thead>
+              <tbody>
+                <tr class="empty-row"><td colspan="4">选择坐标文件后点击预览</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-cleanup" class="tab-panel hidden">
+        <div class="card">
+          <p class="muted cleanup-intro">
+            扫描并清理临时瓦片目录（temp_tiles_*）与历史日期子目录。默认不勾选任何条目，使用中的目录不可选择。
+          </p>
+          <div class="button-row wrap">
+            <button id="scan-cleanup" class="button primary" type="button">扫描残留</button>
+            <button id="quick-temp" class="button warning" type="button">仅清临时瓦片</button>
+            <button id="execute-cleanup" class="button danger" type="button">执行清理（按勾选）</button>
+            <button id="select-all-cleanup" class="button ghost" type="button">全选</button>
+            <button id="invert-cleanup" class="button ghost" type="button">反选</button>
+            <label class="checkbox">
+              <input id="cleanup-temp-only" type="checkbox" />
+              <span>仅临时</span>
+            </label>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>可清理条目</h2>
+            <span id="cleanup-summary" class="muted">尚未扫描</span>
+          </div>
+          <div class="table-wrap cleanup-table-wrap">
+            <table class="data-table" id="cleanup-table">
+              <thead>
+                <tr><th class="col-check">勾选</th><th>类型</th><th>状态</th><th class="num">大小</th><th>修改时间</th><th>路径</th></tr>
+              </thead>
+              <tbody>
+                <tr class="empty-row"><td colspan="6">点击“扫描残留”查看可清理项</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <section class="card results-card">
+      <div class="card-head">
+        <h2>结果</h2>
+        <span id="result-summary" class="muted">尚无结果</span>
+      </div>
+      <div class="table-wrap result-wrap">
+        <table class="data-table" id="result-table">
+          <thead>
+            <tr><th>日期 / 名称</th><th>状态</th><th>失败原因</th><th>路径</th></tr>
+          </thead>
+          <tbody>
+            <tr class="empty-row"><td colspan="4">运行后在此显示每日结果，双击行打开文件</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="batch-failures" class="batch-failures hidden">
+        <h3>批量失败坐标</h3>
+        <ul id="batch-failure-list"></ul>
+      </div>
+    </section>
+
+    <div id="run-banner" class="run-banner hidden">
+      <span id="run-banner-text"></span>
+      <button id="failure-details" class="button ghost small" type="button">查看失败详情</button>
+    </div>
+
+    <section class="bottom">
+      <div class="progress-row">
+        <span>进度</span>
+        <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+        <span id="progress-text" class="muted">0 / 0</span>
+      </div>
+      <div class="log-panel">
+        <div class="log-toolbar">
+          <strong>日志</strong>
+          <button id="clear-log" class="button ghost small" type="button">🗑️ 清空</button>
+          <button id="copy-log" class="button ghost small" type="button">📋 复制全部</button>
+          <span class="spacer"></span>
+          <label class="checkbox">
+            <input id="auto-scroll" type="checkbox" checked />
+            <span>自动滚动</span>
+          </label>
+        </div>
+        <div id="log" class="log-body"></div>
+      </div>
+    </section>
+
+    <footer class="status-bar">
+      <span id="status-text">就绪</span>
+      <span id="status-job" class="muted"></span>
+      <span class="spacer"></span>
+      <span id="status-source" class="muted"></span>
+      <span id="status-theme" class="muted"></span>
+    </footer>
+
+    <div id="modal-map" class="modal hidden">
+      <div class="modal-dialog map-dialog">
+        <div class="modal-head">
+          <h2>地图选点</h2>
+          <div class="button-row">
+            <label class="inline-field">
+              <span>底图</span>
+              <select id="basemap">
+                <option value="satellite">卫星图</option>
+                <option value="street">矢量图</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div id="map" class="map"></div>
+        <div class="map-footer">
+          <span id="map-attribution" class="muted"></span>
+          <span id="map-coords" class="map-coords">未选择点位</span>
+          <span class="spacer"></span>
+          <button id="map-cancel" class="button ghost" type="button">取消</button>
+          <button id="map-confirm" class="button success" type="button">确认选点</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-failure" class="modal hidden">
+      <div class="modal-dialog failure-dialog">
+        <div class="modal-head">
+          <h2>失败详情</h2>
+          <div class="button-row">
+            <button id="copy-failure" class="button ghost" type="button">复制</button>
+            <button id="close-failure" class="button ghost" type="button">关闭</button>
+          </div>
+        </div>
+        <pre id="failure-text" class="failure-text"></pre>
+      </div>
+    </div>
+
+    <div id="modal-confirm" class="modal hidden">
+      <div class="modal-dialog confirm-dialog">
+        <h2 id="confirm-title">确认</h2>
+        <p id="confirm-message"></p>
+        <div class="button-row end">
+          <button id="confirm-cancel" class="button ghost" type="button">取消</button>
+          <button id="confirm-ok" class="button danger" type="button">确认</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

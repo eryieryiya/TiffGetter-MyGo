@@ -1,0 +1,7 @@
+node_modules/
+/dist/
+/build/
+/.mygo/
+/data/
+/*.exe
+mygo_windows_*.syso
