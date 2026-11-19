@@ -1830,11 +1830,7 @@ function wireShell(): void {
         panel.classList.toggle("hidden", panel.id !== `tab-${target}`);
       }
       activeMode = target === "batch" ? "batch" : "single";
-      if (target === "cleanup") {
-        schedulePreflight();
-      } else {
-        schedulePreflight();
-      }
+      schedulePreflight();
     });
   }
   $("#clear-log").addEventListener("click", () => {
