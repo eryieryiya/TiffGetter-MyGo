@@ -51,7 +51,7 @@ replace github.com/eryieryiya/tiffgetter-go => ../TiffGetter-Go
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `TIFFGETTER_PYTHON` | `python` | Python 解释器，用于 sidecar（SHP 解析、GeoTIFF、Google） |
-| `TIFFGETTER_CONTRACT_PATH` | `../TiffGetter-Contract` | `TiffGetter-Contract` 根目录 |
+| `TIFFGETTER_CONTRACT_PATH` | 自动解析 | `TiffGetter-Contract` 根目录；未设置时依次尝试可执行文件与当前目录的平级位置 |
 | `TIFFGETTER_OUTPUT_ROOT` | `<当前目录>/data/output` | 执行器默认输出根；界面中的输出目录仍可单独指定 |
 | `TIFFGETTER_SETTINGS_PATH` | `%AppData%\TiffGetter-MyGo\settings.json` | 界面设置持久化文件 |
 

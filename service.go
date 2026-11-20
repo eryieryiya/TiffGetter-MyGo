@@ -41,14 +41,8 @@ func ConfigFromEnv() AppConfig {
 	if settingsPath == "" {
 		settingsPath = defaultSettingsPath()
 	}
-	pythonPath := os.Getenv("TIFFGETTER_PYTHON")
-	if pythonPath == "" {
-		pythonPath = "python"
-	}
-	contractPath := os.Getenv("TIFFGETTER_CONTRACT_PATH")
-	if contractPath == "" {
-		contractPath = filepath.Join("..", "TiffGetter-Contract")
-	}
+	pythonPath := resolvePythonPath()
+	contractPath := resolveContractPath()
 	return AppConfig{
 		PythonPath:   pythonPath,
 		ContractPath: contractPath,
@@ -56,6 +50,96 @@ func ConfigFromEnv() AppConfig {
 		ScanRoot:     wd,
 		SettingsPath: settingsPath,
 	}
+}
+
+// resolvePythonPath 解析 sidecar 使用的 Python 解释器。
+//
+// Returns:
+//
+//	优先使用 TIFFGETTER_PYTHON；否则尝试 Conda/虚拟环境及 PATH 中的 Python，
+//	并优先选择可导入 rasterio 的解释器。
+func resolvePythonPath() string {
+	if configured := os.Getenv("TIFFGETTER_PYTHON"); configured != "" {
+		return configured
+	}
+	candidates := make([]string, 0, 8)
+	if prefix := os.Getenv("CONDA_PREFIX"); prefix != "" {
+		candidates = append(candidates, filepath.Join(prefix, "python.exe"))
+	}
+	if venv := os.Getenv("VIRTUAL_ENV"); venv != "" {
+		candidates = append(candidates, filepath.Join(venv, "Scripts", "python.exe"))
+	}
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		candidates = append(candidates,
+			filepath.Join(exeDir, "..", "..", ".venv", "Scripts", "python.exe"),
+			filepath.Join(exeDir, "python.exe"),
+		)
+	}
+	if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+		matches, _ := filepath.Glob(filepath.Join(localAppData, "Programs", "Python", "Python*", "python.exe"))
+		candidates = append(candidates, matches...)
+	}
+	candidates = append(candidates, "python")
+	fallback := ""
+	for _, candidate := range candidates {
+		if candidate != "python" {
+			abs, err := filepath.Abs(candidate)
+			if err != nil {
+				continue
+			}
+			if info, err := os.Stat(abs); err != nil || info.IsDir() {
+				continue
+			}
+			candidate = abs
+		}
+		if fallback == "" {
+			fallback = candidate
+		}
+		check := exec.Command(candidate, "-c", "import rasterio")
+		if check.Run() == nil {
+			return candidate
+		}
+	}
+	if fallback != "" {
+		return fallback
+	}
+	return "python"
+}
+
+// resolveContractPath 解析 TiffGetter-Contract 根目录。
+//
+// Returns:
+//
+//	优先使用环境变量；否则依次尝试可执行文件与当前目录的平级位置。
+func resolveContractPath() string {
+	if configured := os.Getenv("TIFFGETTER_CONTRACT_PATH"); configured != "" {
+		return configured
+	}
+	candidates := make([]string, 0, 4)
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		candidates = append(candidates,
+			filepath.Join(exeDir, "..", "..", "..", "TiffGetter-Contract"),
+			filepath.Join(exeDir, "..", "..", "TiffGetter-Contract"),
+		)
+	}
+	if wd, err := os.Getwd(); err == nil {
+		candidates = append(candidates,
+			filepath.Join(wd, "..", "TiffGetter-Contract"),
+			filepath.Join(wd, "..", "..", "TiffGetter-Contract"),
+		)
+	}
+	for _, candidate := range candidates {
+		abs, err := filepath.Abs(candidate)
+		if err != nil {
+			continue
+		}
+		if info, err := os.Stat(abs); err == nil && info.IsDir() {
+			return abs
+		}
+	}
+	return filepath.Join("..", "TiffGetter-Contract")
 }
 
 // PreflightInfo 是运行前预检结果。
